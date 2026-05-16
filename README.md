@@ -1,202 +1,281 @@
-# Mini SOC - Splunk Enterprise Project
+# Mini SOC – Splunk Enterprise Detection Lab
 
-Hands‑on blue team project demonstrating a **Mini Security Operations Center (SOC)** built with **Splunk Enterprise** as the SIEM layer. The focus is on real SOC workflows: log collection, Windows auditing, detection engineering, alerting, and dashboarding.
+Hands-on blue team project demonstrating a **Mini Security Operations Center (SOC)** using **Splunk Enterprise** as a SIEM solution.
 
-![Dashboard Preview](screenshots/05-dashboard/full-dashboard.png)
+The project focuses on practical SOC workflows including:
 
-## Overview
+* Log collection
+* Windows event monitoring
+* Detection engineering using SPL
+* Alert creation
+* Threat investigation
+* Dashboard visualization
 
-This repository captures a compact but realistic SOC lab built to practice hands‑on detection engineering with Splunk. The goal was not just to install Splunk, but to enrich Windows logging, write custom SPL detections, tune alerts, and summarize findings in a simple dashboard.
+---
 
-It’s designed to be both:
-- A **portfolio showcase** for hiring managers and recruiters.
-- A **technical reference** for anyone interested in practical Splunk‑based detections.
+## Dashboard Preview
 
-## Project Goals
+```md
+![Dashboard](screenshots/dashboard/full-dashboard.png)
+```
 
-- Set up a functional Mini SOC using Splunk Enterprise 9.4
-- Forward Windows event logs via Splunk Universal Forwarder
-- Configure Windows advanced auditing for stronger telemetry
-- Write, test, and tune custom detections using SPL
-- Configure alerts for suspicious activity
-- Build an executive‑style dashboard for SOC visibility
+---
+
+## Project Overview
+
+This project was created to simulate how a SOC analyst detects suspicious activity inside a Windows environment using Splunk.
+
+Instead of simply forwarding logs, the goal was to:
+
+* Configure Windows auditing for better visibility
+* Create custom detections using SPL
+* Generate alerts for suspicious activity
+* Investigate attacker behavior
+* Present findings in a SOC-style dashboard
+
+The lab simulates realistic attacker techniques and demonstrates how they can be identified through Windows telemetry and Splunk detections.
+
+---
 
 ## Lab Architecture
 
-The lab consists of:
-- **Splunk Enterprise 9.4** as the SIEM platform
-- **Windows endpoint(s)** with advanced auditing enabled
-- **Splunk Universal Forwarder** forwarding events into Splunk
-- Detection logic mapped to **MITRE ATT&CK** techniques
+The environment consists of:
 
-> See the `screenshots/01-architecture/` folder for setup visuals.
+* **Windows Endpoint**
+* **Splunk Universal Forwarder**
+* **Splunk Enterprise (SIEM)**
 
-## Detection Catalog
+### Architecture Diagram
 
-| Use Case | MITRE ATT&CK | Event IDs / Signals | Status |
-|---|---|---|---|
-| Scheduled Task Persistence | T1053 | 4688, 4698 | ✅ Implemented |
-| Brute Force Detection | T1110 | 4625 | ✅ Implemented |
-| Suspicious PowerShell | T1059.001 | PowerShell cmdline patterns | ✅ Implemented |
+```md
+![Architecture](screenshots/architecture/architecture.png)
+```
 
-## Implemented Use Cases
+### Data Flow
 
-### 1) Scheduled Task Persistence (T1053)
-Detects persistence attempts using `schtasks.exe` and new scheduled task creation.
+```
+Windows Endpoint
+        ↓
+Splunk Universal Forwarder
+        ↓
+Splunk Enterprise
+```
 
-- Watches **Event ID 4688** for suspicious process creation involving `schtasks.exe`.
-- Correlates with **Event ID 4698** for task creation activity.
-- Focuses on persistence‑style task names, unusual paths, and suspicious parent‑child relationships.
+---
 
-**Why it matters:** Scheduled tasks are a common attacker persistence vector, and handling them cleanly is a solid entry‑level SOC skill.
+## Detection Use Cases
 
-**Artifacts:**
-- Screenshot: `screenshots/02-scheduled-task/`
-- SPL: `detections/scheduled-task-persistence.spl`
+| Use Case                   | MITRE ATT&CK | Event IDs  |
+| -------------------------- | ------------ | ---------- |
+| Scheduled Task Persistence | T1053.005    | 4688, 4698 |
+| Suspicious PowerShell      | T1059.001    | 4688       |
+| Brute Force Detection      | T1110        | 4625       |
 
-### 2) Brute Force Attack Detection (T1110)
-Detects repeated failed authentication attempts that may indicate password guessing or brute force activity.
+---
 
-- Monitors **Event ID 4625** for failed logons.
-- Groups failures by host, user, or source IP over a short time window.
-- Triggers a **high‑severity alert** when a threshold is exceeded.
+# 1. Scheduled Task Persistence Detection
 
-**Why it matters:** Brute force detection is a foundational SOC use case and demonstrates threshold‑based alerting, tuning, and false‑positive management.
+## Objective
 
-**Artifacts:**
-- Screenshot: `screenshots/03-brute-force/`
-- SPL: `detections/brute-force-detection.spl`
+Detect persistence attempts through malicious scheduled task creation.
 
-### 3) Suspicious Obfuscated PowerShell (T1059.001)
-Detects potentially malicious PowerShell usage with obfuscation or stealth‑focused flags.
+Attackers commonly use scheduled tasks to maintain persistence after reboot or user logon.
 
-- Watches command‑line indicators such as:
-  - `-enc` / `-EncodedCommand`
-  - `-w hidden`
-  - `IEX`
-  - other suspicious execution patterns
-- Uses process creation visibility to inspect parent process, command line, and execution context.
+**MITRE Technique:** `T1053.005 – Scheduled Task`
 
-**Why it matters:** PowerShell abuse is a very common attacker pattern, so this detection is both practical and relevant for real‑world SOC work.
+---
 
-**Artifacts:**
-- Screenshot: `screenshots/04-powershell-obfuscation/`
-- SPL: `detections/powershell-obfuscation.spl`
+## Attack Simulation
 
-## Example SPL Queries
+A scheduled task was created to simulate persistence behavior.
 
-### Scheduled Task Detection
-```spl
+**Command executed:**
+
+```
+schtasks /create /tn "WindowsUpdateSecurity" /tr "notepad.exe" /sc onlogon /ru SYSTEM
+```
+
+### Attack Execution
+
+```md
+![Scheduled Task Attack](screenshots/scheduled-task/scheduled-task-attack.png)
+```
+
+---
+
+## Detection Logic
+
+The detection monitors:
+
+* **Event ID 4688** for `schtasks.exe` execution
+* **Event ID 4698** for new scheduled task creation
+
+**Example SPL:**
+
+```
 index=* (EventCode=4688 OR EventCode=4698)
 | search CommandLine="*schtasks*" OR TaskName="*"
-| stats count values(CommandLine) values(TaskName) by host user EventCode
 ```
 
-### Brute Force Detection
-```spl
-index=* EventCode=4625
-| bin _time span=5m
-| stats count by _time, host, Account_Name, Source_Network_Address
-| where count >= 5
+### Detection Result
+
+```md
+![Scheduled Task Detection](screenshots/scheduled-task/scheduled-task-alert.png)
 ```
 
-### Suspicious PowerShell Detection
-```spl
-index=* EventCode=4688
-| search CommandLine="*-enc*" OR CommandLine="*-EncodedCommand*" OR CommandLine="*-w hidden*" OR CommandLine="*IEX*"
-| table _time host user ParentProcessName NewProcessName CommandLine
+---
+
+## Investigation
+
+Correlated process creation with task creation activity to identify persistence behavior.
+
+### Investigation View
+
+```md
+![Scheduled Task Investigation](screenshots/scheduled-task/scheduled-task-investigation.png)
 ```
 
-> Full SPL queries are in the `detections/` folder.
+---
 
-## Dashboard and Alerts
+# 2. Suspicious PowerShell Detection
 
-The project includes custom alerts and an executive dashboard to translate raw detections into something more operational.
+## Objective
 
-**Dashboard highlights:**
-- Detection visibility across the three main use cases.
-- Alert summaries for suspicious activity.
-- SOC‑style layout for quick review and demonstration.
+Detect suspicious PowerShell execution patterns commonly associated with attacker activity.
 
-**Alerting focus:**
-- Threshold‑based brute force alerts.
-- Detection‑driven alerts for persistence and suspicious PowerShell.
-- Tuning to reduce false positives while keeping alerts meaningful.
+**MITRE Technique:** `T1059.001 – PowerShell`
 
-## Screenshots
+---
 
-### Scheduled Task Detection
-![Scheduled Task Detection](screenshots/02-scheduled-task/schtasks-detection.png)
+## Attack Simulation
 
-### Brute Force Alert
-![Brute Force Alert](screenshots/03-brute-force/brute-force-alert.png)
+A PowerShell command using encoded execution was executed.
 
-### Executive Dashboard
-![Executive Dashboard](screenshots/05-dashboard/full-dashboard.png)
+```
+powershell -ExecutionPolicy Bypass -enc VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAiAEgAZQBsAGwAbwAiAA==
+```
 
-Additional screenshots are in the `screenshots/` folder.
+### Attack Execution
 
-## Technologies and Skills
+```md
+![PowerShell Attack](screenshots/powershell/powershell-attack.png)
+```
 
-- Splunk Enterprise 9.4
-- Splunk Universal Forwarder
-- SPL (Search Processing Language)
-- Windows Event Logs
-- Windows Advanced Audit Policy configuration
-- Detection engineering fundamentals
-- Alert creation and tuning
-- MITRE ATT&CK mapping
-- Dashboard development
+---
+
+## Detection Logic
+
+Detection focuses on suspicious PowerShell indicators such as:
+
+* `-enc`
+* `-EncodedCommand`
+* `IEX`
+* Hidden execution patterns
+
+### Detection Result
+
+```md
+![PowerShell Detection](screenshots/powershell/powershell-detection.png)
+```
+
+---
+
+## Investigation
+
+Investigated process execution details including command-line arguments and parent process relationships.
+
+### Investigation View
+
+```md
+![PowerShell Investigation](screenshots/powershell/powershell-investigation.png)
+```
+
+---
+
+# 3. Brute Force Detection
+
+## Objective
+
+Detect repeated failed authentication attempts.
+
+**MITRE Technique:** `T1110 – Brute Force`
+
+---
+
+## Attack Simulation
+
+Multiple failed login attempts were generated manually to simulate brute-force behavior.
+
+### Detection Result
+
+```md
+![Failed Logins](screenshots/brute-force/brute-force-detection.png)
+```
+
+---
+
+## Alert Triggered
+
+```md
+![Brute Force Alert](screenshots/brute-force/brute-force-alert.png)
+```
+
+---
+
+## Analysis View
+
+Repeated failures were visualized over time to identify abnormal authentication behavior.
+
+```md
+![Brute Force Analysis](screenshots/brute-force/brute-force-analysis.png)
+```
+
+---
+
+# Dashboard
+
+A custom Splunk dashboard was created to centralize detections and improve visibility.
+
+Dashboard includes:
+
+* Failed logon activity
+* Scheduled task detections
+* Suspicious PowerShell activity
+* Security event overview
+
+```md
+![Dashboard](screenshots/dashboard/full-dashboard.png)
+```
+
+---
+
+## Skills Demonstrated
+
+* Splunk Enterprise
+* SPL (Search Processing Language)
+* Windows Event Logging
+* Detection Engineering
+* Alert Development
+* Log Investigation
+* Windows Security Monitoring
+* MITRE ATT&CK Mapping
+* Dashboard Creation
+
+---
 
 ## Lessons Learned
 
-- **Command‑line auditing is critical.** Process creation logging adds major detection value for tools like `schtasks.exe` and PowerShell.
-- **Tuning matters.** Detections must be sensitive enough to catch real activity without flooding the analyst with false positives.
-- **Correlation improves context.** Combining multiple event types often produces stronger signals than single‑event rules.
-- **Performance needs attention.** Several scheduled searches require careful design to avoid overloading the Splunk instance.
-- **Presentation matters.** A simple but clear dashboard helps make SOC‑style work more tangible and understandable.
+This project improved hands-on understanding of:
 
-## Repository Structure
+* Windows telemetry
+* Event correlation
+* Detection tuning
+* Alerting workflows
+* SOC investigation methodology
 
-```text
-Splunk-Mini-SOC/
-├── README.md
-├── screenshots/
-│   ├── 01-architecture/
-│   ├── 02-scheduled-task/
-│   ├── 03-brute-force/
-│   ├── 04-powershell-obfuscation/
-│   ├── 05-dashboard/
-│   └── alerts/
-├── detections/
-│   ├── scheduled-task-persistence.spl
-│   ├── brute-force-detection.spl
-│   ├── powershell-obfuscation.spl
-├── configs/
-│   ├── inputs.conf
-│   ├── props.conf
-│   └── audit-policy-notes.md
-└── docs/
-    └── project-report.pdf
-```
-
-> Folders can be added incrementally as needed.
-
-## How to Explore
-
-1. Read this README to understand the scope and goals.
-2. Browse the screenshots for visual proof of the lab and detections.
-3. Inspect the SPL files in `detections/` for detection logic.
-4. Optionally review configuration notes in `configs/` if you want more detail.
-
-## Notes
-
-- This is a **portfolio / showcase project**, not a production deployment.
-- The environment is intentionally compact and focused on core SOC workflows.
-- Any sensitive data has been sanitized before publication.
+---
 
 ## Author
 
-**Mohamed Ismail**  
-Mini SOC / Splunk Enterprise Project  
-May 2026
+**Mohamed Ismail**
+SOC / Security Operations Enthusiast
