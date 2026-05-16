@@ -15,9 +15,7 @@ The project focuses on practical SOC workflows including:
 
 ## Dashboard Preview
 
-```md
 ![Dashboard](screenshots/dashboard/full-dashboard.png)
-```
 
 ---
 
@@ -47,9 +45,7 @@ The environment consists of:
 
 ### Architecture Diagram
 
-```md
 ![Architecture](screenshots/architecture/architecture.png)
-```
 
 ### Data Flow
 
@@ -92,14 +88,12 @@ A scheduled task was created to simulate persistence behavior.
 **Command executed:**
 
 ```
-schtasks /create /tn "WindowsUpdateSecurity" /tr "notepad.exe" /sc onlogon /ru SYSTEM
+schtasks /create /tn "APT_Demo_Task" /tr "powershell.exe -WindowStyle Hidden -EncodedCommand VwByAGkAdABlAC0ASABvAHMAdAAgACIAQQBQAFQAIABTAGkAbQB1AGwAYQB0AGkAbwBuACAAQQBjAHQAaQB2AGUAIgA=" /sc onstart /ru SYSTEM /F
 ```
 
 ### Attack Execution
 
-```md
 ![Scheduled Task Attack](screenshots/scheduled-task/scheduled-task-attack.png)
-```
 
 ---
 
@@ -113,15 +107,13 @@ The detection monitors:
 **Example SPL:**
 
 ```
-index=* (EventCode=4688 OR EventCode=4698)
-| search CommandLine="*schtasks*" OR TaskName="*"
+index=* source="WinEventLog:Security" EventCode=4698 ("*powershell.exe*" OR "*cmd.exe*" OR "*wscript.exe*" OR "*cscript.exe*" OR "*\\Temp\\*" OR "*\\Public\\*")
+| table _time, host, Account_Name, Task_Name, _raw
 ```
 
 ### Detection Result
 
-```md
 ![Scheduled Task Detection](screenshots/scheduled-task/scheduled-task-alert.png)
-```
 
 ---
 
@@ -131,9 +123,7 @@ Correlated process creation with task creation activity to identify persistence 
 
 ### Investigation View
 
-```md
 ![Scheduled Task Investigation](screenshots/scheduled-task/scheduled-task-investigation.png)
-```
 
 ---
 
@@ -157,9 +147,7 @@ powershell -ExecutionPolicy Bypass -enc VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAiAEgA
 
 ### Attack Execution
 
-```md
 ![PowerShell Attack](screenshots/powershell/powershell-attack.png)
-```
 
 ---
 
@@ -174,9 +162,7 @@ Detection focuses on suspicious PowerShell indicators such as:
 
 ### Detection Result
 
-```md
 ![PowerShell Detection](screenshots/powershell/powershell-detection.png)
-```
 
 ---
 
@@ -186,9 +172,7 @@ Investigated process execution details including command-line arguments and pare
 
 ### Investigation View
 
-```md
 ![PowerShell Investigation](screenshots/powershell/powershell-investigation.png)
-```
 
 ---
 
@@ -206,29 +190,19 @@ Detect repeated failed authentication attempts.
 
 Multiple failed login attempts were generated manually to simulate brute-force behavior.
 
-### Detection Result
-
-```md
-![Failed Logins](screenshots/brute-force/brute-force-detection.png)
-```
-
 ---
 
 ## Alert Triggered
 
-```md
 ![Brute Force Alert](screenshots/brute-force/brute-force-alert.png)
-```
 
 ---
 
-## Analysis View
+## Investigation
 
-Repeated failures were visualized over time to identify abnormal authentication behavior.
+Repeated failed logon attempts (Event ID 4625) are shown over time, showing brute force behavior from a single host.
 
-```md
-![Brute Force Analysis](screenshots/brute-force/brute-force-analysis.png)
-```
+![Brute Force Analysis](screenshots/brute-force/brute-force-investigation.png)
 
 ---
 
@@ -243,9 +217,7 @@ Dashboard includes:
 * Suspicious PowerShell activity
 * Security event overview
 
-```md
 ![Dashboard](screenshots/dashboard/full-dashboard.png)
-```
 
 ---
 
